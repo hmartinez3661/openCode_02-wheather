@@ -6,6 +6,7 @@ import {
   type AppState,
   type City,
 } from "../src/state.ts";
+import { createTheme, type Theme } from "../src/theme.ts";
 
 const ottawa: City = {
   name: "Ottawa",
@@ -42,7 +43,11 @@ interface Harness {
   app: WeatherApp;
 }
 
-function createHarness(initial: AppState, answers: string[]): Harness {
+function createHarness(
+  initial: AppState,
+  answers: string[],
+  options: { theme?: Theme } = {},
+): Harness {
   let state = initial;
   const output: string[] = [];
   const cities = new Map<string, City>([
@@ -57,6 +62,7 @@ function createHarness(initial: AppState, answers: string[]): Harness {
     },
     geocodeCity: async (name) => cities.get(name.trim().toLowerCase()) ?? null,
     getWeather: async () => ({ temperature: 10, apparentTemperature: 9 }),
+    theme: options.theme,
     out: (message) => output.push(message),
     error: (message) => output.push(message),
   });
@@ -137,6 +143,18 @@ describe("WeatherApp", () => {
     await harness.app.run();
 
     expect(harness.output.join("\n")).toContain("Opción inválida");
+  });
+
+  test("colorea los mensajes de éxito en verde y los errores en rojo", async () => {
+    const harness = createHarness(createEmptyState(), ["Ottawa", "7", "9"], {
+      theme: createTheme({ enabled: true }),
+    });
+
+    await harness.app.run();
+
+    const output = harness.output.join("\n");
+    expect(output).toContain("\x1b[32m");
+    expect(output).toContain("\x1b[31m");
   });
 
   test("muestra el clima de cada ciudad registrada", async () => {

@@ -2,7 +2,7 @@
 
 ## Overview
 - Bun + TypeScript weather CLI using OpenMeteo. User-facing text and menu labels are in Spanish.
-- Entry point `index.ts`; implementation in `src/`: `actions.ts` (menu flow), `api.ts` (OpenMeteo), `state.ts`, `config.ts`, `menu.ts`, `format.ts`.
+- Entry point `index.ts`; implementation in `src/`: `actions.ts` (menu flow), `api.ts` (OpenMeteo), `state.ts`, `config.ts`, `menu.ts`, `format.ts`, `theme.ts`.
 - No runtime dependencies or third-party CLI libraries; use Bun/Node built-ins (`node:readline/promises`, `node:fs/promises`) and Bun's `fetch`.
 
 ## Commands
@@ -29,3 +29,7 @@ Two calls, no API key:
 2. Forecast: `https://api.open-meteo.com/v1/forecast?latitude=<lat>&longitude=<lon>&current=temperature_2m,apparent_temperature[&temperature_unit=fahrenheit]`
 
 Validate response payloads before use (see `src/api.ts`); map network/HTTP failures to `WeatherApiError`.
+
+## Colors
+- `src/theme.ts` defines semantic ANSI painters (menu, temperature, success, error, warning, secondary, prompt) and `supportsColor`, which honors `NO_COLOR`, `FORCE_COLOR`, TTY detection, and `TERM=dumb`.
+- `index.ts` injects the auto-detected theme; `WeatherApp` defaults to `plainTheme`, so unit tests assert unstyled text. Do not store ANSI codes in state or emit them from pure formatters unless a theme is passed explicitly.

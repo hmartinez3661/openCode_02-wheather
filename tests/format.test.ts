@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { formatCity, formatTemperature, formatWeather } from "../src/format.ts";
 import type { City } from "../src/state.ts";
+import { createTheme } from "../src/theme.ts";
 
 const ottawa: City = {
   name: "Ottawa",
@@ -35,5 +36,18 @@ describe("formatWeather", () => {
     expect(
       formatWeather(ottawa, { temperature: 12.3, apparentTemperature: null }, "celsius"),
     ).toContain("sensación no disponible");
+  });
+
+  test("colorea temperaturas en amarillo y etiquetas en dim", () => {
+    const colored = formatWeather(
+      ottawa,
+      { temperature: 12.3, apparentTemperature: 10.1 },
+      "celsius",
+      createTheme({ enabled: true }),
+    );
+
+    expect(colored).toContain("\x1b[33m12.3 °C\x1b[0m");
+    expect(colored).toContain("\x1b[2msensación\x1b[0m");
+    expect(colored).toContain("\x1b[33m10.1 °C\x1b[0m");
   });
 });

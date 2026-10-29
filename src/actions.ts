@@ -9,10 +9,12 @@ import {
   type AppState,
   type City,
 } from "./state.ts";
+import { plainTheme, type Theme } from "./theme.ts";
 
 export interface WeatherAppOptions {
   out?: (message: string) => void;
   error?: (message: string) => void;
+  theme?: Theme;
   loadState?: typeof loadState;
   saveState?: typeof saveState;
   geocodeCity?: typeof geocodeCity;
@@ -23,6 +25,7 @@ export class WeatherApp {
   private state: AppState = createEmptyState();
   private readonly out: (message: string) => void;
   private readonly error: (message: string) => void;
+  private readonly theme: Theme;
   private readonly load: typeof loadState;
   private readonly save: typeof saveState;
   private readonly geocode: typeof geocodeCity;
@@ -35,6 +38,7 @@ export class WeatherApp {
   ) {
     this.out = options.out ?? console.log;
     this.error = options.error ?? console.error;
+    this.theme = options.theme ?? plainTheme;
     this.load = options.loadState ?? loadState;
     this.save = options.saveState ?? saveState;
     this.geocode = options.geocodeCity ?? geocodeCity;
@@ -44,17 +48,17 @@ export class WeatherApp {
   async run(): Promise<void> {
     const loaded = await this.load(this.statePath);
     this.state = loaded.state;
-    if (loaded.warning) this.error(`  ${loaded.warning}`);
+    if (loaded.warning) this.error(this.theme.warning(`  ${loaded.warning}`));
 
     if (this.state.cities.length === 0) {
-      this.out("\n  ¡Bienvenido! Agrega tu primera ciudad para comenzar.");
+      this.out(this.theme.menu("\n  ¡Bienvenido! Agrega tu primera ciudad para comenzar."));
       await this.addCity();
     }
 
     let running = true;
     while (running) {
-      this.out(renderMenu(this.state));
-      const answer = await this.prompt.ask("  Selecciona una opción: ");
+      this.out(renderMenu(this.state, this.theme));
+      const answer = await this.prompt.ask(this.theme.prompt("  Selecciona una opción: "));
       running = await this.handle(answer.trim());
     }
   }
@@ -82,7 +86,7 @@ export class WeatherApp {
       case "9":
         return false;
       default:
-        this.out("  Opción inválida. Elige una opción del menú.");
+        this.out(this.theme.error("  Opción inválida. Elige una opción del menú."));
     }
 
     return true;
@@ -91,7 +95,7 @@ export class WeatherApp {
   private async showDefaultCity(): Promise<void> {
     const city = this.state.defaultCity;
     if (!city) {
-      this.out("  No hay una ciudad default configurada.");
+      this.out(this.theme.warning("  No hay una ciudad default configurada."));
       await this.addCity();
       return;
     }
@@ -101,7 +105,7 @@ export class WeatherApp {
 
   private async showAllCities(): Promise<void> {
     if (this.state.cities.length === 0) {
-      this.out("  No hay ciudades registradas. Usa la opción 3 para agregar una.");
+      this.out(this.theme.warning("  No hay ciudades registradas. Usa la opción 3 para agregar una."));
       return;
     }
 
@@ -113,29 +117,29 @@ export class WeatherApp {
   private async showWeather(city: City): Promise<void> {
     try {
       const weather = await this.fetchWeather(city, this.state.unit);
-      this.out(`  ${formatWeather(city, weather, this.state.unit)}`);
+      this.out(`  ${formatWeather(city, weather, this.state.unit, this.theme)}`);
     } catch (error) {
-      this.error(`  ${formatCity(city)}: ${errorMessage(error)}`);
+      this.error(this.theme.error(`  ${formatCity(city)}: ${errorMessage(error)}`));
     }
   }
 
   private async addCity(): Promise<void> {
-    const name = (await this.prompt.ask("  Nombre de la ciudad: ")).trim();
+    const name = (await this.prompt.ask(this.theme.prompt("  Nombre de la ciudad: "))).trim();
     if (name === "") {
-      this.out("  Debes ingresar un nombre de ciudad.");
+      this.out(this.theme.error("  Debes ingresar un nombre de ciudad."));
       return;
     }
 
-    this.out(`  Buscando "${name}"...`);
+    this.out(this.theme.secondary(`  Buscando "${name}"...`));
     try {
       const city = await this.geocode(name);
       if (!city) {
-        this.out(`  No se encontró la ciudad "${name}".`);
+        this.out(this.theme.error(`  No se encontró la ciudad "${name}".`));
         return;
       }
 
       if (this.state.cities.some((existing) => sameCity(existing, city))) {
-        this.out(`  ${formatCity(city)} ya está registrada.`);
+        this.out(this.theme.warning(`  ${formatCity(city)} ya está registrada.`));
         return;
       }
 
@@ -143,9 +147,13 @@ export class WeatherApp {
       this.state.cities.push(city);
       if (isFirstCity) this.state.defaultCity = city;
       await this.persist();
-      this.out(`  Ciudad agregada: ${formatCity(city)}${isFirstCity ? " (default)" : ""}.`);
+      this.out(
+        this.theme.success(
+          `  Ciudad agregada: ${formatCity(city)}${isFirstCity ? " (default)" : ""}.`,
+        ),
+      );
     } catch (error) {
-      this.error(`  ${errorMessage(error)}`);
+      this.error(this.theme.error(`  ${errorMessage(error)}`));
     }
   }
 
@@ -159,11 +167,11 @@ export class WeatherApp {
     }
 
     await this.persist();
-    this.out(`  Ciudad eliminada: ${formatCity(selected.city)}.`);
+    this.out(this.theme.success(`  Ciudad eliminada: ${formatCity(selected.city)}.`));
     if (this.state.defaultCity) {
-      this.out(`  Ciudad default actual: ${formatCity(this.state.defaultCity)}.`);
+      this.out(this.theme.secondary(`  Ciudad default actual: ${formatCity(this.state.defaultCity)}.`));
     } else {
-      this.out("  Ya no hay una ciudad default configurada.");
+      this.out(this.theme.warning("  Ya no hay una ciudad default configurada."));
     }
   }
 
@@ -173,18 +181,18 @@ export class WeatherApp {
 
     this.state.defaultCity = selected.city;
     await this.persist();
-    this.out(`  Ciudad default: ${formatCity(selected.city)}.`);
+    this.out(this.theme.success(`  Ciudad default: ${formatCity(selected.city)}.`));
   }
 
   private async toggleUnit(): Promise<void> {
     this.state.unit = this.state.unit === "celsius" ? "fahrenheit" : "celsius";
     await this.persist();
-    this.out(`  Unidad ajustada a ${unitSymbol(this.state.unit)}.`);
+    this.out(this.theme.success(`  Unidad ajustada a ${unitSymbol(this.state.unit)}.`));
   }
 
   private async pickCity(promptText: string): Promise<{ city: City; index: number } | null> {
     if (this.state.cities.length === 0) {
-      this.out("  No hay ciudades registradas. Usa la opción 3 para agregar una.");
+      this.out(this.theme.warning("  No hay ciudades registradas. Usa la opción 3 para agregar una."));
       return null;
     }
 
@@ -194,10 +202,10 @@ export class WeatherApp {
       this.out(`  ${index + 1}. ${formatCity(city)}${suffix}`);
     });
 
-    const answer = await this.prompt.ask(promptText);
+    const answer = await this.prompt.ask(this.theme.prompt(promptText));
     const selection = parseSelection(answer, this.state.cities.length);
     if (selection === null) {
-      this.out("  Selección inválida.");
+      this.out(this.theme.error("  Selección inválida."));
       return null;
     }
 
@@ -209,7 +217,7 @@ export class WeatherApp {
     try {
       await this.save(this.state, this.statePath);
     } catch (error) {
-      this.error(`  No se pudo guardar la configuración: ${errorMessage(error)}`);
+      this.error(this.theme.error(`  No se pudo guardar la configuración: ${errorMessage(error)}`));
     }
   }
 }

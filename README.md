@@ -58,3 +58,18 @@ compilado; en desarrollo queda en la raíz del proyecto. La variable de entorno
 | `bun test` | Ejecuta las pruebas unitarias. |
 | `bun run typecheck` | Verifica los tipos con `bun check`. |
 | `bun run build` | Genera el binario en `dist/weather` (`dist/weather.exe` en Windows). |
+
+# Colores
+
+La salida usa:
+
+- **Cyan**: menú, bordes y prompts.
+- **Amarillo**: temperaturas y sensación térmica.
+- **Verde**: operaciones correctas.
+- **Rojo**: errores.
+
+Los colores se desactivan automáticamente cuando la salida no es una terminal. También se
+pueden controlar con variables de entorno:
+
+- `NO_COLOR=1`: desactiva los colores.
+- `FORCE_COLOR=1`: los fuerza, útil para probar con pipes.

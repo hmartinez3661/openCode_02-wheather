@@ -1,5 +1,6 @@
 import type { Weather } from "./api.ts";
 import type { City, TemperatureUnit } from "./state.ts";
+import { plainTheme, type Theme } from "./theme.ts";
 
 export function unitSymbol(unit: TemperatureUnit): string {
   return unit === "fahrenheit" ? "°F" : "°C";
@@ -15,12 +16,19 @@ export function formatCity(city: City): string {
     .join(", ");
 }
 
-export function formatWeather(city: City, weather: Weather, unit: TemperatureUnit): string {
-  const temperature = formatTemperature(weather.temperature, unit);
+export function formatWeather(
+  city: City,
+  weather: Weather,
+  unit: TemperatureUnit,
+  theme: Pick<Theme, "temperature" | "secondary"> = plainTheme,
+): string {
+  const temperature = theme.temperature(formatTemperature(weather.temperature, unit));
   const apparent =
     weather.apparentTemperature === null
-      ? "sensación no disponible"
-      : `sensación ${formatTemperature(weather.apparentTemperature, unit)}`;
+      ? theme.secondary("sensación no disponible")
+      : `${theme.secondary("sensación")} ${theme.temperature(
+          formatTemperature(weather.apparentTemperature, unit),
+        )}`;
 
   return `${formatCity(city)} — ${temperature} (${apparent})`;
 }
