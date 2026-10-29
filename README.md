@@ -1,28 +1,28 @@
 
-Weather CLI APP
+# Weather CLI APP
 
 El objetivo de esta aplicación es que creemos una aplicación de consola que pida que ingresemos la ciudad, Al final, generaremos un binario ejecutable.
 
-Opciones:
+# Opciones:
 Ingresar el nombre de una ciudad.
 Guardar la ciudad por defecto.
 Registrar varias otras ciudades para buscar el clima en esas otras ciudades.
 
-Stack
+# Stack
 Bun.js
 OpenMeteo
 
-Ejemplo de petición http:
+# Ejemplo de petición http:
 Paso 1: Geocoding API.
 Paso 2: OpenMeteo API.
 
 https://geocoding-api.open-meteo.com/v1/search?name=Ottawa&count=1&language=es&format=json
 https://api.open-meteo.com/v1/forecast?latitude=45.41117&longitude=-75.69812&current=temperature_2m
 
-Inicializar proyecto
+# Inicializar proyecto
 bun init
 
-Ejemplo del menú
+# Ejemplo del menú
 Esta es la apariencia que deseamos crear
 
 ════════════════════════════════════════
@@ -37,3 +37,24 @@ Esta es la apariencia que deseamos crear
   9. Salir
 ════════════════════════════════════════
   Selecciona una opción: 5
+
+# Uso
+
+```bash
+bun install
+bun run start
+```
+
+La primera vez la aplicación pedirá una ciudad y la guardará como default. El estado
+(ciudades, ciudad default y unidad) se guarda en `weather-cli.json` junto al ejecutable
+compilado; en desarrollo queda en la raíz del proyecto. La variable de entorno
+`WEATHER_CLI_STATE_PATH` permite usar otra ubicación.
+
+# Scripts
+
+| Comando | Descripción |
+| --- | --- |
+| `bun run start` | Ejecuta la CLI. |
+| `bun test` | Ejecuta las pruebas unitarias. |
+| `bun run typecheck` | Verifica los tipos con `bun check`. |
+| `bun run build` | Genera el binario en `dist/weather` (`dist/weather.exe` en Windows). |

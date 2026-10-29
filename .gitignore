@@ -1,10 +1,16 @@
 # dependencies (bun install)
+
+
 node_modules
 
 # output
 out
 dist
 *.tgz
+
+# estado local del CLI
+weather-cli.json
+weather-cli.json.*.tmp
 
 # code coverage
 coverage
