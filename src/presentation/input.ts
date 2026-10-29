@@ -1,10 +1,5 @@
 import { createInterface } from "node:readline/promises";
 import type { Readable, Writable } from "node:stream";
-import { unitSymbol } from "./format.ts";
-import type { AppState } from "./state.ts";
-import { plainTheme, type Theme } from "./theme.ts";
-
-const LINE = "═".repeat(40);
 
 export interface Prompter {
   ask(question: string): Promise<string>;
@@ -61,26 +56,6 @@ export class ConsolePrompter implements Prompter {
     this.closed = true;
     this.rl.close();
   }
-}
-
-export function renderMenu(state: AppState, theme: Theme = plainTheme): string {
-  const border = theme.menu(LINE);
-
-  return [
-    "",
-    border,
-    theme.title("         WEATHER CLI"),
-    border,
-    theme.menu("  1. Clima de ciudad default"),
-    theme.menu(`  2. Clima de todas las ciudades (${state.cities.length})`),
-    theme.menu("  3. Buscar y agregar ciudad"),
-    theme.menu("  4. Eliminar ciudad"),
-    theme.menu("  5. Establecer ciudad default"),
-    theme.menu("  6. Pronóstico de 7 días"),
-    theme.menu(`  8. Ajustes (${unitSymbol(state.unit)})`),
-    theme.menu("  9. Salir"),
-    border,
-  ].join("\n");
 }
 
 export function parseSelection(input: string, max: number): number | null {

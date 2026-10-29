@@ -11,6 +11,10 @@ dist
 # estado local del CLI
 weather-cli.json
 weather-cli.json.*.tmp
+cities.json
+cities.json.*.tmp
+settings.json
+settings.json.*.tmp
 
 # code coverage
 coverage

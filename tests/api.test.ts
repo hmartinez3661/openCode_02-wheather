@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { geocodeCity, getForecast, getWeather, WeatherApiError } from "../src/api.ts";
+import { geocodeCity } from "../src/api/geocoding.ts";
+import { getForecast, getWeather } from "../src/api/weather.ts";
+import { WeatherApiError } from "../src/api/client.ts";
 
 type FetchInput = Parameters<typeof fetch>[0];
 

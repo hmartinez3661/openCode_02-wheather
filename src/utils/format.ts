@@ -1,6 +1,7 @@
-import type { Forecast, Weather } from "./api.ts";
-import type { City, TemperatureUnit } from "./state.ts";
-import { plainTheme, type Theme } from "./theme.ts";
+import type { TemperatureUnit } from "../types/AppState.ts";
+import type { City } from "../types/City.ts";
+import type { Forecast, Weather } from "../types/Weather.ts";
+import { plainTheme, type Theme } from "./colors.ts";
 
 const WEATHER_CODE_LABELS: Record<number, string> = {
   0: "Despejado",

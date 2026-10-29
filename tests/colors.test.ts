@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { createTheme, plainTheme, supportsColor } from "../src/theme.ts";
+import { createTheme, plainTheme, supportsColor } from "../src/utils/colors.ts";
 
 describe("createTheme", () => {
   test("deshabilitado devuelve el texto sin cambios", () => {

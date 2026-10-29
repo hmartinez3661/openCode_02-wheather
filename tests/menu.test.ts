@@ -1,8 +1,15 @@
 import { describe, expect, test } from "bun:test";
 import { PassThrough } from "node:stream";
-import { ConsolePrompter, parseSelection, renderMenu } from "../src/menu.ts";
-import { createEmptyState, type City } from "../src/state.ts";
-import { createTheme } from "../src/theme.ts";
+import {
+  ConsolePrompter,
+  parseSelection,
+  type Prompter,
+} from "../src/presentation/input.ts";
+import { renderMenu, runMenu } from "../src/presentation/menu.ts";
+import type { Output } from "../src/presentation/output.ts";
+import { createEmptyState } from "../src/storage/stateStore.ts";
+import type { City } from "../src/types/City.ts";
+import { createTheme, plainTheme } from "../src/utils/colors.ts";
 
 const ottawa: City = {
   name: "Ottawa",
@@ -11,6 +18,31 @@ const ottawa: City = {
   latitude: 45.41117,
   longitude: -75.69812,
 };
+
+function scriptedPrompter(answers: string[]): Prompter {
+  let index = 0;
+
+  return {
+    async ask() {
+      const answer = answers[index];
+      index += 1;
+      if (answer === undefined) throw new Error("No hay más respuestas en el test.");
+      return answer;
+    },
+    close() {},
+  };
+}
+
+function collectOutput(): { output: string[]; out: Output } {
+  const output: string[] = [];
+  return {
+    output,
+    out: {
+      line: (message) => output.push(message),
+      error: (message) => output.push(message),
+    },
+  };
+}
 
 describe("renderMenu", () => {
   test("muestra el contador de ciudades y la unidad actual", () => {
@@ -31,6 +63,45 @@ describe("renderMenu", () => {
 
     expect(menu).toContain("\x1b[36m");
     expect(menu).toContain("\x1b[1;36m         WEATHER CLI\x1b[0m");
+  });
+});
+
+describe("runMenu", () => {
+  test("rechaza una opción inválida sin salir", async () => {
+    const { output, out } = collectOutput();
+    const dispatched: string[] = [];
+
+    await runMenu({
+      state: createEmptyState(),
+      theme: plainTheme,
+      prompt: scriptedPrompter(["7", "9"]),
+      out,
+      dispatch: async (id) => {
+        dispatched.push(id);
+        return id !== "9";
+      },
+    });
+
+    expect(output.join("\n")).toContain("Opción inválida");
+    expect(dispatched).toEqual(["9"]);
+  });
+
+  test("se detiene cuando dispatch devuelve false", async () => {
+    const { out } = collectOutput();
+    let calls = 0;
+
+    await runMenu({
+      state: createEmptyState(),
+      theme: plainTheme,
+      prompt: scriptedPrompter(["9"]),
+      out,
+      dispatch: async () => {
+        calls += 1;
+        return false;
+      },
+    });
+
+    expect(calls).toBe(1);
   });
 });
 

@@ -1,13 +1,18 @@
 import { describe, expect, test } from "bun:test";
-import { WeatherApp } from "../src/actions.ts";
-import type { Forecast, getForecast } from "../src/api.ts";
-import type { Prompter } from "../src/menu.ts";
-import {
-  createEmptyState,
-  type AppState,
-  type City,
-} from "../src/state.ts";
-import { createTheme, type Theme } from "../src/theme.ts";
+import { addCity } from "../src/actions/addCity.ts";
+import { showAllWeather } from "../src/actions/getAllWeather.ts";
+import { showForecast } from "../src/actions/getForecast.ts";
+import { showDefaultWeather } from "../src/actions/getWeather.ts";
+import { removeCity } from "../src/actions/removeCity.ts";
+import { setDefaultCity } from "../src/actions/setDefaultCity.ts";
+import { toggleUnit } from "../src/actions/toggleUnit.ts";
+import type { Prompter } from "../src/presentation/input.ts";
+import { createEmptyState } from "../src/storage/stateStore.ts";
+import type { ActionContext } from "../src/types/ActionContext.ts";
+import type { AppState } from "../src/types/AppState.ts";
+import type { City } from "../src/types/City.ts";
+import type { Forecast } from "../src/types/Weather.ts";
+import { createTheme, plainTheme, type Theme } from "../src/utils/colors.ts";
 
 const ottawa: City = {
   name: "Ottawa",
@@ -58,146 +63,210 @@ function scriptedPrompter(answers: string[]): Prompter {
 }
 
 interface Harness {
-  state: AppState;
+  context: ActionContext;
   output: string[];
-  app: WeatherApp;
+  counters: { persist: number };
 }
 
 function createHarness(
   initial: AppState,
   answers: string[],
-  options: { theme?: Theme; forecast?: typeof getForecast } = {},
+  options: {
+    theme?: Theme;
+    getWeather?: ActionContext["getWeather"];
+    getForecast?: ActionContext["getForecast"];
+  } = {},
 ): Harness {
-  let state = initial;
   const output: string[] = [];
+  const counters = { persist: 0 };
+  const state = structuredClone(initial);
   const cities = new Map<string, City>([
     ["ottawa", ottawa],
     ["lima", lima],
   ]);
 
-  const app = new WeatherApp(scriptedPrompter(answers), "state.json", {
-    loadState: async () => ({ state }),
-    saveState: async (next) => {
-      state = structuredClone(next);
+  const context: ActionContext = {
+    state,
+    out: {
+      line: (message) => output.push(message),
+      error: (message) => output.push(message),
     },
+    theme: options.theme ?? plainTheme,
+    prompt: scriptedPrompter(answers),
     geocodeCity: async (name) => cities.get(name.trim().toLowerCase()) ?? null,
-    getWeather: async () => ({ temperature: 10, apparentTemperature: 9 }),
-    getForecast: options.forecast ?? (async () => defaultForecast),
-    theme: options.theme,
-    out: (message) => output.push(message),
-    error: (message) => output.push(message),
-  });
-
-  return {
-    get state() {
-      return state;
+    getWeather: options.getWeather ?? (async () => ({ temperature: 10, apparentTemperature: 9 })),
+    getForecast: options.getForecast ?? (async () => defaultForecast),
+    persist: async () => {
+      counters.persist += 1;
     },
-    output,
-    app,
   };
+
+  return { context, output, counters };
 }
 
-describe("WeatherApp", () => {
-  test("agrega la primera ciudad en el arranque y la deja como default", async () => {
-    const harness = createHarness(createEmptyState(), ["Ottawa", "9"]);
+describe("addCity", () => {
+  test("agrega la primera ciudad y la deja como default", async () => {
+    const harness = createHarness(createEmptyState(), ["Ottawa"]);
 
-    await harness.app.run();
+    await addCity(harness.context);
 
-    expect(harness.state.cities).toEqual([ottawa]);
-    expect(harness.state.defaultCity).toEqual(ottawa);
-    expect(harness.output.join("\n")).toContain("Ciudad agregada: Ottawa, Ontario, Canadá (default)");
-  });
-
-  test("agrega otra ciudad y permite establecerla como default", async () => {
-    const harness = createHarness(
-      { defaultCity: ottawa, cities: [ottawa], unit: "celsius" },
-      ["3", "Lima", "5", "2", "9"],
+    expect(harness.context.state.cities).toEqual([ottawa]);
+    expect(harness.context.state.defaultCity).toEqual(ottawa);
+    expect(harness.output.join("\n")).toContain(
+      "Ciudad agregada: Ottawa, Ontario, Canadá (default)",
     );
-
-    await harness.app.run();
-
-    expect(harness.state.cities).toEqual([ottawa, lima]);
-    expect(harness.state.defaultCity).toEqual(lima);
-  });
-
-  test("elimina la ciudad default y reasigna la primera restante", async () => {
-    const harness = createHarness(
-      { defaultCity: ottawa, cities: [ottawa, lima], unit: "celsius" },
-      ["4", "1", "9"],
-    );
-
-    await harness.app.run();
-
-    expect(harness.state.cities).toEqual([lima]);
-    expect(harness.state.defaultCity).toEqual(lima);
-  });
-
-  test("alterna la unidad y la persiste", async () => {
-    const harness = createHarness(
-      { defaultCity: ottawa, cities: [ottawa], unit: "celsius" },
-      ["8", "9"],
-    );
-
-    await harness.app.run();
-
-    expect(harness.state.unit).toBe("fahrenheit");
+    expect(harness.counters.persist).toBe(1);
   });
 
   test("no agrega una ciudad duplicada", async () => {
     const harness = createHarness(
       { defaultCity: ottawa, cities: [ottawa], unit: "celsius" },
-      ["3", "Ottawa", "9"],
+      ["Ottawa"],
     );
 
-    await harness.app.run();
+    await addCity(harness.context);
 
-    expect(harness.state.cities).toHaveLength(1);
+    expect(harness.context.state.cities).toHaveLength(1);
     expect(harness.output.join("\n")).toContain("ya está registrada");
   });
 
-  test("rechaza una opción inválida sin cerrar el menú", async () => {
+  test("avisa cuando la ciudad no existe", async () => {
+    const harness = createHarness(createEmptyState(), ["Ciudad Inexistente"]);
+
+    await addCity(harness.context);
+
+    expect(harness.context.state.cities).toEqual([]);
+    expect(harness.output.join("\n")).toContain("No se encontró la ciudad");
+  });
+});
+
+describe("removeCity", () => {
+  test("elimina la ciudad default y reasigna la primera restante", async () => {
     const harness = createHarness(
-      { defaultCity: ottawa, cities: [ottawa], unit: "celsius" },
-      ["7", "9"],
+      { defaultCity: ottawa, cities: [ottawa, lima], unit: "celsius" },
+      ["1"],
     );
 
-    await harness.app.run();
+    await removeCity(harness.context);
 
-    expect(harness.output.join("\n")).toContain("Opción inválida");
+    expect(harness.context.state.cities).toEqual([lima]);
+    expect(harness.context.state.defaultCity).toEqual(lima);
+    expect(harness.counters.persist).toBe(1);
   });
 
-  test("colorea los mensajes de éxito en verde y los errores en rojo", async () => {
-    const harness = createHarness(createEmptyState(), ["Ottawa", "7", "9"], {
-      theme: createTheme({ enabled: true }),
-    });
+  test("rechaza una selección inválida", async () => {
+    const harness = createHarness(
+      { defaultCity: ottawa, cities: [ottawa], unit: "celsius" },
+      ["99"],
+    );
 
-    await harness.app.run();
+    await removeCity(harness.context);
 
-    const output = harness.output.join("\n");
-    expect(output).toContain("\x1b[32m");
-    expect(output).toContain("\x1b[31m");
+    expect(harness.context.state.cities).toEqual([ottawa]);
+    expect(harness.output.join("\n")).toContain("Selección inválida");
   });
 
+  test("avisa cuando no hay ciudades registradas", async () => {
+    const harness = createHarness(createEmptyState(), []);
+
+    await removeCity(harness.context);
+
+    expect(harness.output.join("\n")).toContain("No hay ciudades registradas");
+  });
+});
+
+describe("setDefaultCity", () => {
+  test("establece la ciudad elegida como default", async () => {
+    const harness = createHarness(
+      { defaultCity: ottawa, cities: [ottawa, lima], unit: "celsius" },
+      ["2"],
+    );
+
+    await setDefaultCity(harness.context);
+
+    expect(harness.context.state.defaultCity).toEqual(lima);
+    expect(harness.counters.persist).toBe(1);
+  });
+});
+
+describe("toggleUnit", () => {
+  test("alterna la unidad y la persiste", async () => {
+    const harness = createHarness(
+      { defaultCity: ottawa, cities: [ottawa], unit: "celsius" },
+      [],
+    );
+
+    await toggleUnit(harness.context);
+
+    expect(harness.context.state.unit).toBe("fahrenheit");
+    expect(harness.counters.persist).toBe(1);
+    expect(harness.output.join("\n")).toContain("Unidad ajustada a °F");
+  });
+});
+
+describe("showDefaultWeather", () => {
+  test("muestra el clima de la ciudad default", async () => {
+    const harness = createHarness(
+      { defaultCity: ottawa, cities: [ottawa], unit: "celsius" },
+      [],
+    );
+
+    await showDefaultWeather(harness.context);
+
+    expect(harness.output.join("\n")).toContain(
+      "Ottawa, Ontario, Canadá — 10.0 °C (sensación 9.0 °C)",
+    );
+  });
+
+  test("pide agregar una ciudad cuando no hay default", async () => {
+    const harness = createHarness(createEmptyState(), ["Ottawa"]);
+
+    await showDefaultWeather(harness.context);
+
+    expect(harness.context.state.defaultCity).toEqual(ottawa);
+    expect(harness.output.join("\n")).toContain("No hay una ciudad default configurada");
+  });
+
+  test("informa un error del clima sin interrumpir", async () => {
+    const harness = createHarness(
+      { defaultCity: ottawa, cities: [ottawa], unit: "celsius" },
+      [],
+      {
+        getWeather: async () => {
+          throw new Error("sin clima");
+        },
+      },
+    );
+
+    await showDefaultWeather(harness.context);
+
+    expect(harness.output.join("\n")).toContain("Ottawa, Ontario, Canadá: sin clima");
+  });
+});
+
+describe("showAllWeather", () => {
   test("muestra el clima de cada ciudad registrada", async () => {
     const harness = createHarness(
       { defaultCity: ottawa, cities: [ottawa, lima], unit: "celsius" },
-      ["2", "9"],
+      [],
     );
 
-    await harness.app.run();
+    await showAllWeather(harness.context);
 
     const output = harness.output.join("\n");
     expect(output).toContain("Ottawa, Ontario, Canadá — 10.0 °C (sensación 9.0 °C)");
     expect(output).toContain("Lima, Perú — 10.0 °C (sensación 9.0 °C)");
   });
+});
 
+describe("showForecast", () => {
   test("muestra el pronóstico de 7 días de la ciudad elegida", async () => {
     const harness = createHarness(
       { defaultCity: ottawa, cities: [ottawa, lima], unit: "celsius" },
-      ["6", "1", "9"],
+      ["1"],
     );
 
-    await harness.app.run();
+    await showForecast(harness.context);
 
     const output = harness.output.join("\n");
     expect(output).toContain("Ottawa, Ontario, Canadá — pronóstico 7 días (máx / mín)");
@@ -206,19 +275,31 @@ describe("WeatherApp", () => {
     expect(output).toContain("lluvia 40%");
   });
 
-  test("informa un error del pronóstico sin cerrar el menú", async () => {
+  test("informa un error del pronóstico sin interrumpir", async () => {
     const harness = createHarness(
       { defaultCity: ottawa, cities: [ottawa], unit: "celsius" },
-      ["6", "1", "9"],
+      ["1"],
       {
-        forecast: async () => {
+        getForecast: async () => {
           throw new Error("sin pronóstico");
         },
       },
     );
 
-    await harness.app.run();
+    await showForecast(harness.context);
 
     expect(harness.output.join("\n")).toContain("Ottawa, Ontario, Canadá: sin pronóstico");
+  });
+});
+
+describe("colores", () => {
+  test("usa verde para los mensajes de éxito", async () => {
+    const harness = createHarness(createEmptyState(), ["Ottawa"], {
+      theme: createTheme({ enabled: true }),
+    });
+
+    await addCity(harness.context);
+
+    expect(harness.output.join("\n")).toContain("\x1b[32m");
   });
 });

@@ -6,10 +6,10 @@ import {
   formatTemperature,
   formatWeather,
   weatherCodeLabel,
-} from "../src/format.ts";
-import type { Forecast } from "../src/api.ts";
-import type { City } from "../src/state.ts";
-import { createTheme } from "../src/theme.ts";
+} from "../src/utils/format.ts";
+import type { Forecast } from "../src/types/Weather.ts";
+import type { City } from "../src/types/City.ts";
+import { createTheme } from "../src/utils/colors.ts";
 
 const ottawa: City = {
   name: "Ottawa",

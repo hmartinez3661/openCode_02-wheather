@@ -48,10 +48,19 @@ bun install
 bun run start
 ```
 
-La primera vez la aplicación pedirá una ciudad y la guardará como default. El estado
-(ciudades, ciudad default y unidad) se guarda en `weather-cli.json` junto al ejecutable
-compilado; en desarrollo queda en la raíz del proyecto. La variable de entorno
-`WEATHER_CLI_STATE_PATH` permite usar otra ubicación.
+La primera vez la aplicación pedirá una ciudad y la guardará como default. El estado se
+divide en dos archivos junto al ejecutable compilado (en desarrollo quedan en la raíz del
+proyecto):
+
+- `cities.json`: ciudades guardadas y ciudad default.
+- `settings.json`: preferencias, como la unidad de temperatura.
+
+Si existe un `weather-cli.json` anterior, se migra automáticamente a los dos archivos
+nuevos la primera vez y se conserva como respaldo. Variables de entorno disponibles:
+
+- `WEATHER_CLI_DATA_DIR`: cambia el directorio donde viven `cities.json` y `settings.json`.
+- `WEATHER_CLI_STATE_PATH`: ubicación del `weather-cli.json` anterior; su directorio se usa
+  como base si no se define `WEATHER_CLI_DATA_DIR`.
 
 # Scripts
 
