@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { WeatherApp } from "../src/actions.ts";
+import type { Forecast, getForecast } from "../src/api.ts";
 import type { Prompter } from "../src/menu.ts";
 import {
   createEmptyState,
@@ -21,6 +22,25 @@ const lima: City = {
   country: "Perú",
   latitude: -12.0464,
   longitude: -77.0428,
+};
+
+const defaultForecast: Forecast = {
+  days: [
+    {
+      date: "2026-10-29",
+      temperatureMax: 12.3,
+      temperatureMin: 3.1,
+      weatherCode: 2,
+      precipitationProbability: 40,
+    },
+    {
+      date: "2026-10-30",
+      temperatureMax: 9.8,
+      temperatureMin: 1.2,
+      weatherCode: 61,
+      precipitationProbability: 80,
+    },
+  ],
 };
 
 function scriptedPrompter(answers: string[]): Prompter {
@@ -46,7 +66,7 @@ interface Harness {
 function createHarness(
   initial: AppState,
   answers: string[],
-  options: { theme?: Theme } = {},
+  options: { theme?: Theme; forecast?: typeof getForecast } = {},
 ): Harness {
   let state = initial;
   const output: string[] = [];
@@ -62,6 +82,7 @@ function createHarness(
     },
     geocodeCity: async (name) => cities.get(name.trim().toLowerCase()) ?? null,
     getWeather: async () => ({ temperature: 10, apparentTemperature: 9 }),
+    getForecast: options.forecast ?? (async () => defaultForecast),
     theme: options.theme,
     out: (message) => output.push(message),
     error: (message) => output.push(message),
@@ -168,5 +189,36 @@ describe("WeatherApp", () => {
     const output = harness.output.join("\n");
     expect(output).toContain("Ottawa, Ontario, Canadá — 10.0 °C (sensación 9.0 °C)");
     expect(output).toContain("Lima, Perú — 10.0 °C (sensación 9.0 °C)");
+  });
+
+  test("muestra el pronóstico de 7 días de la ciudad elegida", async () => {
+    const harness = createHarness(
+      { defaultCity: ottawa, cities: [ottawa, lima], unit: "celsius" },
+      ["6", "1", "9"],
+    );
+
+    await harness.app.run();
+
+    const output = harness.output.join("\n");
+    expect(output).toContain("Ottawa, Ontario, Canadá — pronóstico 7 días (máx / mín)");
+    expect(output).toContain("Jue 29 oct");
+    expect(output).toContain("12.3 °C / 3.1 °C");
+    expect(output).toContain("lluvia 40%");
+  });
+
+  test("informa un error del pronóstico sin cerrar el menú", async () => {
+    const harness = createHarness(
+      { defaultCity: ottawa, cities: [ottawa], unit: "celsius" },
+      ["6", "1", "9"],
+      {
+        forecast: async () => {
+          throw new Error("sin pronóstico");
+        },
+      },
+    );
+
+    await harness.app.run();
+
+    expect(harness.output.join("\n")).toContain("Ottawa, Ontario, Canadá: sin pronóstico");
   });
 });

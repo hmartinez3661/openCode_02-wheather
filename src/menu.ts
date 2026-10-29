@@ -76,6 +76,7 @@ export function renderMenu(state: AppState, theme: Theme = plainTheme): string {
     theme.menu("  3. Buscar y agregar ciudad"),
     theme.menu("  4. Eliminar ciudad"),
     theme.menu("  5. Establecer ciudad default"),
+    theme.menu("  6. Pronóstico de 7 días"),
     theme.menu(`  8. Ajustes (${unitSymbol(state.unit)})`),
     theme.menu("  9. Salir"),
     border,

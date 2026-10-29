@@ -9,6 +9,20 @@ export interface Weather {
   apparentTemperature: number | null;
 }
 
+export interface ForecastDay {
+  date: string;
+  temperatureMax: number;
+  temperatureMin: number;
+  weatherCode: number | null;
+  precipitationProbability: number | null;
+}
+
+export interface Forecast {
+  days: ForecastDay[];
+}
+
+const FORECAST_DAYS = 7;
+
 export class WeatherApiError extends Error {
   constructor(message: string) {
     super(message);
@@ -99,4 +113,72 @@ export async function getWeather(
         ? apparentTemperature
         : null,
   };
+}
+
+function optionalNumber(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+export async function getForecast(
+  city: Pick<City, "latitude" | "longitude">,
+  unit: TemperatureUnit,
+  fetchImpl: typeof fetch = fetch,
+): Promise<Forecast> {
+  const url = new URL(FORECAST_URL);
+  url.searchParams.set("latitude", String(city.latitude));
+  url.searchParams.set("longitude", String(city.longitude));
+  url.searchParams.set(
+    "daily",
+    "temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max",
+  );
+  url.searchParams.set("forecast_days", String(FORECAST_DAYS));
+  url.searchParams.set("timezone", "auto");
+  if (unit === "fahrenheit") {
+    url.searchParams.set("temperature_unit", "fahrenheit");
+  }
+
+  const data = await requestJson(url, fetchImpl);
+  if (!isRecord(data) || !isRecord(data.daily)) {
+    throw new WeatherApiError("OpenMeteo devolvió una respuesta inesperada.");
+  }
+
+  const { daily } = data;
+  const times = daily.time;
+  const maximums = daily.temperature_2m_max;
+  const minimums = daily.temperature_2m_min;
+  if (!Array.isArray(times) || !Array.isArray(maximums) || !Array.isArray(minimums)) {
+    throw new WeatherApiError("OpenMeteo no devolvió el pronóstico diario.");
+  }
+
+  const codes = Array.isArray(daily.weather_code) ? daily.weather_code : [];
+  const probabilities = Array.isArray(daily.precipitation_probability_max)
+    ? daily.precipitation_probability_max
+    : [];
+
+  const count = Math.min(times.length, maximums.length, minimums.length, FORECAST_DAYS);
+  const days: ForecastDay[] = [];
+
+  for (let index = 0; index < count; index += 1) {
+    const date = times[index];
+    const temperatureMax = maximums[index];
+    const temperatureMin = minimums[index];
+
+    if (typeof date !== "string" || date.trim() === "") continue;
+    if (typeof temperatureMax !== "number" || !Number.isFinite(temperatureMax)) continue;
+    if (typeof temperatureMin !== "number" || !Number.isFinite(temperatureMin)) continue;
+
+    days.push({
+      date: date.trim(),
+      temperatureMax,
+      temperatureMin,
+      weatherCode: optionalNumber(codes[index]),
+      precipitationProbability: optionalNumber(probabilities[index]),
+    });
+  }
+
+  if (days.length === 0) {
+    throw new WeatherApiError("OpenMeteo no devolvió el pronóstico diario.");
+  }
+
+  return { days };
 }

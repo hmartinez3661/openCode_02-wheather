@@ -24,9 +24,10 @@
 - Saves are atomic (temp file + rename). A corrupt state file warns and starts empty; save failures warn but never crash the menu loop.
 
 ## OpenMeteo integration
-Two calls, no API key:
+Two endpoints, no API key:
 1. Geocode: `https://geocoding-api.open-meteo.com/v1/search?name=<city>&count=1&language=es&format=json`
 2. Forecast: `https://api.open-meteo.com/v1/forecast?latitude=<lat>&longitude=<lon>&current=temperature_2m,apparent_temperature[&temperature_unit=fahrenheit]`
+   - 7-day forecast uses the same endpoint with `daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max&forecast_days=7&timezone=auto` (plus `temperature_unit=fahrenheit` when needed).
 
 Validate response payloads before use (see `src/api.ts`); map network/HTTP failures to `WeatherApiError`.
 

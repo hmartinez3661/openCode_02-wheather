@@ -1,5 +1,5 @@
-import { geocodeCity, getWeather } from "./api.ts";
-import { formatCity, formatWeather, unitSymbol } from "./format.ts";
+import { geocodeCity, getForecast, getWeather } from "./api.ts";
+import { formatCity, formatForecast, formatWeather, unitSymbol } from "./format.ts";
 import { parseSelection, renderMenu, type Prompter } from "./menu.ts";
 import {
   createEmptyState,
@@ -19,6 +19,7 @@ export interface WeatherAppOptions {
   saveState?: typeof saveState;
   geocodeCity?: typeof geocodeCity;
   getWeather?: typeof getWeather;
+  getForecast?: typeof getForecast;
 }
 
 export class WeatherApp {
@@ -30,6 +31,7 @@ export class WeatherApp {
   private readonly save: typeof saveState;
   private readonly geocode: typeof geocodeCity;
   private readonly fetchWeather: typeof getWeather;
+  private readonly fetchForecast: typeof getForecast;
 
   constructor(
     private readonly prompt: Prompter,
@@ -43,6 +45,7 @@ export class WeatherApp {
     this.save = options.saveState ?? saveState;
     this.geocode = options.geocodeCity ?? geocodeCity;
     this.fetchWeather = options.getWeather ?? getWeather;
+    this.fetchForecast = options.getForecast ?? getForecast;
   }
 
   async run(): Promise<void> {
@@ -79,6 +82,9 @@ export class WeatherApp {
         break;
       case "5":
         await this.setDefaultCity();
+        break;
+      case "6":
+        await this.showForecast();
         break;
       case "8":
         await this.toggleUnit();
@@ -120,6 +126,18 @@ export class WeatherApp {
       this.out(`  ${formatWeather(city, weather, this.state.unit, this.theme)}`);
     } catch (error) {
       this.error(this.theme.error(`  ${formatCity(city)}: ${errorMessage(error)}`));
+    }
+  }
+
+  private async showForecast(): Promise<void> {
+    const selected = await this.pickCity("  Número de la ciudad para el pronóstico: ");
+    if (!selected) return;
+
+    try {
+      const forecast = await this.fetchForecast(selected.city, this.state.unit);
+      this.out(`  ${formatForecast(selected.city, forecast, this.state.unit, this.theme)}`);
+    } catch (error) {
+      this.error(this.theme.error(`  ${formatCity(selected.city)}: ${errorMessage(error)}`));
     }
   }
 

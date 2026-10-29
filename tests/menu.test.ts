@@ -22,6 +22,7 @@ describe("renderMenu", () => {
 
     expect(menu).toContain("WEATHER CLI");
     expect(menu).toContain("Clima de todas las ciudades (1)");
+    expect(menu).toContain("6. Pronóstico de 7 días");
     expect(menu).toContain("Ajustes (°F)");
   });
 

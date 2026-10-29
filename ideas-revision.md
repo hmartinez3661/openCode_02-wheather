@@ -8,4 +8,4 @@
 5 - Binario: compila bien; revisar que ./weather guarde datos en ~/.config/weather-cli/.
 6 - Escalabilidad: ¿qué tan fácil será expandir con nuevas funcionalidades?
 7 - Carga: ¿hay estado de carga en las tareas asíncronas?
-7 - 7 days forecast: agregar la posibilidad de obtener el pronostico para los proximos 7 dias
+7 - Pronóstico de 7 días: agregar la posibilidad de obtener el pronostico para los proximos 7 dias
