@@ -1,0 +1,120 @@
+# Crea un GitHub Release tag a partir de la versión de package.json (v{version}),
+# compila el binario del CLI en Linux, Windows y macOS y lo adjunta al release.
+# El release se omite si el tag ya existe (pushes que no cambian la versión).
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  check-version:
+    name: Check version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+      exists: ${{ steps.check.outputs.exists }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read version from package.json
+        id: version
+        run: |
+          VERSION=$(jq -r '.version // empty' package.json)
+          if [ -z "$VERSION" ]; then
+            echo "::error::package.json no tiene el campo 'version'"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Versión detectada: $VERSION"
+
+      - name: Check if tag already exists
+        id: check
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          if git ls-remote --tags origin "refs/tags/$TAG" | grep -q "$TAG"; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "El tag $TAG ya existe, se omite el release."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "El tag $TAG no existe, se procede con el release."
+          fi
+
+  build:
+    name: Build (${{ matrix.os }})
+    needs: check-version
+    if: needs.check-version.outputs.exists == 'false'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            binary-name: weather-linux
+            binary-path: dist/weather
+          - os: windows-latest
+            binary-name: weather-windows.exe
+            binary-path: dist/weather.exe
+          - os: macos-latest
+            binary-name: weather-macos
+            binary-path: dist/weather
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Build
+        run: bun run build
+
+      - name: Rename binary
+        shell: bash
+        run: cp "${{ matrix.binary-path }}" "${{ matrix.binary-name }}"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.binary-name }}
+          path: ${{ matrix.binary-name }}
+          if-no-files-found: error
+
+  release:
+    name: Create release
+    needs: [check-version, build]
+    if: needs.check-version.outputs.exists == 'false'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Create tag and release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.check-version.outputs.tag }}
+          VERSION: ${{ needs.check-version.outputs.version }}
+        run: |
+          git tag "$TAG" "${{ github.sha }}"
+          git push origin "$TAG"
+          gh release create "$TAG" \
+            dist/weather-linux \
+            dist/weather-windows.exe \
+            dist/weather-macos \
+            --title "$TAG" \
+            --generate-notes
+          echo "Release $TAG publicado para la versión $VERSION."
