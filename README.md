@@ -67,9 +67,9 @@ nuevos la primera vez y se conserva como respaldo. Variables de entorno disponib
 | Comando | Descripción |
 | --- | --- |
 | `bun run start` | Ejecuta la CLI. |
-| `bun test` | Ejecuta las pruebas unitarias. |
+| `bun test` | Ejecuta las pruebas automáticas de `testing/`. |
 | `bun run typecheck` | Verifica los tipos con `bun check`. |
-| `bun run build` | Genera el binario en `dist/weather` (`dist/weather.exe` en Windows). |
+| `bun run build` | Ejecuta primero las pruebas; solo compila el binario en `dist/weather` (`dist/weather.exe` en Windows) si todas pasan. |
 
 # Colores
 

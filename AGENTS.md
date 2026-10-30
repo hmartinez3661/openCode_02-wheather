@@ -7,9 +7,9 @@
 
 ## Commands
 - `bun run start` — run the CLI.
-- `bun test` — run `tests/*.test.ts`; tests mock `fetch` and never hit the network.
+- `bun test` (or `bun run test`) — run `testing/*.test.ts`; unit tests mock `fetch` and never hit the network, and `testing/cli.test.ts` runs the CLI as a subprocess (also offline).
 - `bun run typecheck` (runs `bun check`) — type-check after edits.
-- `bun run build` — compile `dist/weather` (`dist/weather.exe` on Windows) with `bun build --compile`.
+- `bun run build` — runs the test suite first and compiles `dist/weather` (`dist/weather.exe` on Windows) with `bun build --compile` only if every test passes.
 
 ## TypeScript conventions (differ from defaults)
 - ESM with `module: Preserve` and `allowImportingTsExtensions`: import local files with their explicit `.ts` extension.
